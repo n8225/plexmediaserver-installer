@@ -8,7 +8,7 @@ get_pms_build(){
 	local cpuarch=$(uname -i)
 
 
-	if [[ $cpuarch== "aarch64" ]]; then
+	if [[ $cpuarch == "aarch64" ]]; then
 		echo "aarch64"
 	fi
 }
