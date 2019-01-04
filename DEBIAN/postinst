@@ -5,24 +5,11 @@ PMS_DOWNLOAD_DIR=/tmp/plex_tmp_download
 
 get_pms_build(){
 
-	local cpuinfo=$(grep -i features /proc/cpuinfo)
-	local cpuarch=$(grep -i architecture /proc/cpuinfo | cut -d' ' -f3 | head -n1)
+	local cpuarch=$(uname -i)
 
-	local bios_board_vendor=""
-	if [[ -e /sys/class/dmi/id/board_vendor ]]; then
-		bios_board_vendor=$(cat /sys/class/dmi/id/board_vendor)
-	elif [[ -e /sys/devices/virtual/dmi/id/board_vendor ]]; then
-		bios_board_vendor=$(cat /sys/devices/virtual/dmi/id/board_vendor)
-	fi
 
-	if [[ $bios_board_vendor == "AMD" ]]; then
-		echo "synology"
-	elif [[ $cpuinfo =~ .*neon.* ]] && [[ $cpuinfo =~ .*vfpv4.* ]] && [[ $cpuinfo =~ .*thumb.* ]] && [[ $cpuinfo =~ .*idiva.* ]]; then
-		echo "netgear"		
-	elif [[ $cpuarch == "8" ]]; then
-		echo "netgear"
-	else
-		echo "synology"
+	if [[ $cpuarch== "aarch64" ]]; then
+		echo "aarch64"
 	fi
 }
 
@@ -80,6 +67,32 @@ install_synology(){
 }
 
 
+install_synology_arm64(){
+
+	local PMS_URL='https://downloads.plex.tv/plex-media-server-new/1.15.0.545-c0e6af42a/synology/PlexMediaServer-1.15.0.545-c0e6af42a-aarch64.spk"
+	local PMS_HASH='359cadb0f043989d199cebcac1e765af304acbb0a7cdfb30d10ebc9456594c72 '
+
+	echo "Downloading synology package ..."
+	cd $PMS_DOWNLOAD_DIR	
+	curl --progress-bar -o synology.tar $PMS_URL
+
+	local PMS_DOWNLOAD_HASH=`sha256sum synology.tar | cut -d' ' -f1`
+
+	if [ "$PMS_HASH" != "$PMS_DOWNLOAD_HASH" ]
+	then
+		echo "Checksum mismatch. Downloaded file does not match this package."
+		exit 1
+	else
+		echo "Passed checksum test."
+	fi
+
+	echo "Extracting synology.tar ..."
+        tar -xOf synology.tar package.tgz | tar -xzf - -C $PMS_LIB_DIR/
+
+	# remove not used files
+	rm -r $PMS_LIB_DIR/dsm_config
+}
+
 case "$1" in
     configure)
 	adduser --quiet --system --shell /bin/bash --home /var/lib/plexmediaserver --group plex
@@ -99,8 +112,10 @@ case "$1" in
 
 	if [[ $pmsbuild == "netgear" ]]; then
 		install_netgear
-	else
+	elif
 		install_synology
+	elif
+		install_synology_arm64
 	fi
 
 	# remove tmp data
